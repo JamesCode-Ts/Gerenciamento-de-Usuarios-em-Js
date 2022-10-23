@@ -1,7 +1,7 @@
 class UserController {
 
 
-    constructor(formIdCreate,formIdUpdate, tableId) { /**O construtor é iniciado assim que a classe é instanciadas, ou seja, logo no inicio. */
+    constructor(formIdCreate, formIdUpdate, tableId) { /**O construtor é iniciado assim que a classe é instanciadas, ou seja, logo no inicio. */
 
         this.formEl = document.getElementById(formIdCreate);
         this.formUpdateEl = document.getElementById(formIdUpdate);
@@ -9,6 +9,7 @@ class UserController {
 
         this.onSubmit();
         this.onEdit();
+        this.selectAll();
 
     }
     onEdit() {
@@ -35,14 +36,30 @@ class UserController {
 
             tr.dataset.user = JSON.stringify(values);
 
-            tr.innerHTML =
 
-                `<tr>
-    <td><img src="${values.photo}" alt="User Image" class="img-circle img-sm"></td>
-    <td>${values.name}</td>
-    <td>${values.email}</td>
-    <td>${(values.admin) ? 'Sim' : 'Não'}</td>
-    <td>${Utils.dateFormat(values.register)}</td>
+            let userOld = JSON.parse(tr.dataset.user);
+
+            let result = Object.assign({}, userOld, values);
+
+
+            this.getPhoto(this.formUpdateEl).then(
+                (content) => {
+
+                    if (!values.photo) {
+                        result._photo = userOld._photo;
+                    } else {
+                        result._photo = content;
+                    }
+
+                    tr.dataset.user = JSON.stringify(result);
+                    tr.innerHTML =
+
+                        `<tr>
+    <td><img src="${result._photo}" alt="User Image" class="img-circle img-sm"></td>
+    <td>${result._name}</td>
+    <td>${result._email}</td>
+    <td>${(result._admin) ? 'Sim' : 'Não'}</td>
+    <td>${Utils.dateFormat(result._register)}</td>
     <td>
     <button type="button" class="btn btn-primary btn-edit btn-xs btn-flat">Editar</button>
     <button type="button" class="btn btn-danger btn-delete btn-xs btn-flat">Excluir</button>
@@ -50,152 +67,212 @@ class UserController {
     </tr>
     
     `;
-            this.addEventsTr(tr);
-            this.updateCount();
-        });
-    }
+                    this.addEventsTr(tr);
 
-    onSubmit() {
+                    this.updateCount();
 
-        this.formEl.addEventListener("submit", event => {
+                    this.formUpdateEl.reset();
 
-            event.preventDefault(); /**Cancela o carregamento padrão da atualização após apertar o submit. */
+                    btn.disabled = false;
 
-            let btn = this.formEl.querySelector("[type=submit]");
+                    this.showPanelCreate();
 
-            btn.disable = true;
-
-            let values = this.getValues(this.formEl);
-
-
-            if (!values) return false;
-
-            this.getPhoto().then(
-                (content) => { // recebe o retorno do callback e armazena no content.
-
-                    values.photo = content;
-
-                    this.addLine(values); // adiciona a foto na linha
-
-                    this.formEl.reset();
-
-                    btn.disable = false;
 
 
                 },
                 (e) => {
-                    console.error(e);
+
+                    console.log(e);
+                }
+            );
+
+        });
+
+    }
+
+        onSubmit() {
+
+            this.formEl.addEventListener("submit", event => {
+
+                event.preventDefault(); /**Cancela o carregamento padrão da atualização após apertar o submit. */
+
+                let btn = this.formEl.querySelector("[type=submit]");
+
+                btn.disable = true;
+
+                let values = this.getValues(this.formEl);
+
+
+                if (!values) return false;
+
+                this.getPhoto(this.formEl).then(
+                    (content) => { // recebe o retorno do callback e armazena no content.
+
+                        values.photo = content;
+                        
+                        this.insert(values);
+
+                        this.addLine(values); // adiciona a foto na linha
+
+                        this.formEl.reset();
+
+                        btn.disable = false;
+
+
+                    },
+                    (e) => {
+                        console.error(e);
+
+                    });
+
+
+
+
+            });
+        }
+
+
+
+
+        getPhoto(formEl) {
+
+            return new Promise((resolve, reject) => {
+
+                let fileReader = new FileReader();
+
+                let elements = [...formEl.elements].filter(item => { // filtra só aonde esta o campo da foto
+
+                    if (item.name === 'photo') {
+
+                        return item;
+
+                    }
 
                 });
 
 
+                let file = elements[0].files[0]; // O campo onde esta a foto com ela já carregada.
 
+                fileReader.onload = () => { /** Quando terminar de carregar a foto executa o callback, função assíncrona.*/
 
-        });
-    }
+                    resolve(fileReader.result); /** O resulado vai vim na base64 */
 
+                };
 
+                fileReader.onerror = (e) => {
 
+                    reject(e);
+                }
 
-    getPhoto() {
+                if (file) {
+                    fileReader.readAsDataURL(file);
+                } else {
+                    resolve('dist/img/boxed-bg.jpg');
+                }// ler e carrega a foto
+            });
 
-        return new Promise((resolve, reject) => {
+        }
+        getValues(formEl) {
 
-            let fileReader = new FileReader();
+            let user = {};
+            let isValid = true;
 
-            let elements = [...this.formEl.elements].filter(item => { // filtra só aonde esta o campo da foto
+            /** Dessa forma é possivel transformar uma colecão em um array com [], e ... para que os elementos sejam indeterminados, ou seja , não se sabe quantos elementos tem. */
+            [...formEl.elements].forEach(function (field, index) { /** O forEach serve para percorrer todos os campos de name. 
+                                          E oferece uma função como tratamento para cada campo name.*/
 
-                if (item.name === 'photo') {
-
-                    return item;
+                if (['name', 'email', 'password'].indexOf(field.name) > -1 && !field.value) {
+                    field.parentElement.classList.add('has-error');
+                    isValid = false;
 
                 }
 
-            });
+                if (field.name == "gender") {
 
+                    if (field.checked) {
 
-            let file = elements[0].files[0]; // O campo onde esta a foto com ela já carregada.
+                        user[field.name] = field.value;
+                    }
 
-            fileReader.onload = () => { /** Quando terminar de carregar a foto executa o callback, função assíncrona.*/
+                } else if (field.name == "admin") {
 
-                resolve(fileReader.result); /** O resulado vai vim na base64 */
+                    user[field.name] = field.checked;
 
-            };
-
-            fileReader.onerror = (e) => {
-
-                reject(e);
-            }
-
-            if (file) {
-                fileReader.readAsDataURL(file);
-            } else {
-                resolve('dist/img/boxed-bg.jpg');
-            }// ler e carrega a foto
-        });
-
-    }
-    getValues(formEl) {
-
-        let user = {};
-        let isValid = true;
-
-        /** Dessa forma é possivel transformar uma colecão em um array com [], e ... para que os elementos sejam indeterminados, ou seja , não se sabe quantos elementos tem. */
-        [...formEl.elements].forEach(function (field, index) { /** O forEach serve para percorrer todos os campos de name. 
-                                          E oferece uma função como tratamento para cada campo name.*/
-
-            if (['name', 'email', 'password'].indexOf(field.name) > -1 && !field.value) {
-                field.parentElement.classList.add('has-error');
-                isValid = false;
-
-            }
-
-            if (field.name == "gender") {
-
-                if (field.checked) {
+                } else {
 
                     user[field.name] = field.value;
                 }
+            });
 
-            } else if (field.name == "admin") {
 
-                user[field.name] = field.checked;
-
-            } else {
-
-                user[field.name] = field.value;
+            if (!isValid) {
+                return false;
             }
-        });
 
 
-        if (!isValid) {
-            return false;
+            return new User(
+                user.name,
+                user.gender,
+                user.birth,
+                user.country,
+                user.email,
+                user.password,
+                user.photo,
+                user.admin
+            );
+
+        }
+        
+     getUsersStorage() {
+
+        let users = [];
+
+        if (localStorage.getItem("users")) {
+
+            users = JSON.parse(localStorage.getItem("users"));
+
         }
 
-
-        return new User(
-            user.name,
-            user.gender,
-            user.birth,
-            user.country,
-            user.email,
-            user.password,
-            user.photo,
-            user.admin
-        );
+        return users;
 
     }
 
+        selectAll(){
 
-    addLine(dataUser) {
+            let users = this.getUsersStorage();
+    
+            users.forEach(dataUser=>{
+    
+                let user = new User();
+    
+                user.loadFromJSON(dataUser);
+    
+                this.addLine(user);
+    
+            });
+    
+        }
 
-        let tr = document.createElement('tr');
 
-        /** dataset permite adicionar(armazenar) atributos via HTML, onde os dados ficam carregados. */
+       insert(data){
 
-        tr.dataset.user = JSON.stringify(dataUser); /** Tranforma os valores que esta no objeto em um JSON, ou seja um string. */
+       let users = this.getUsersStorage();
 
-        tr.innerHTML = `
+       users.push(data);
+     //  sessionStorage.setItem("users", JSON.stringify(users));
+
+       localStorage.setItem("users", JSON.stringify(users));
+
+        }
+        addLine(dataUser) {
+
+            let tr = document.createElement('tr');
+
+            /** dataset permite adicionar(armazenar) atributos via HTML, onde os dados ficam carregados. */
+
+            tr.dataset.user = JSON.stringify(dataUser); /** Tranforma os valores que esta no objeto em um JSON, ou seja um string. */
+
+            tr.innerHTML = `
     
     <tr>
     <td><img src="${dataUser.photo}" alt="User Image" class="img-circle img-sm"></td>
@@ -212,98 +289,117 @@ class UserController {
     `;
 
 
-        this.addEventsTr(tr);
+            this.addEventsTr(tr);
 
-        this.tableEl.appendChild(tr);
+            this.tableEl.appendChild(tr);
 
-        this.updateCount();
+            this.updateCount();
 
-    }
-
-
-    addEventsTr(tr) {
+        }
 
 
-        tr.querySelector(".btn-edit").addEventListener("click", e => {
-
-            let json = JSON.parse(tr.dataset.user);
-
-            this.formUpdateEl.dataset.trIndex = tr.sectionRowIndex;
+        addEventsTr(tr) {
 
 
-            for (let name in json) {
 
-                let field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "]");
+            
+        tr.querySelector(".btn-delete").addEventListener("click", e => {
 
-                if (field) {
+            if (confirm("Deseja realmente excluir?")) {
 
-                    switch (field.type) {
-                        case 'file':
-                            continue;
-                            break;
+                tr.remove();
 
-                        case 'radio':
-                            field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "][value=" + json[name] + "]");
-                            field.checked = true;
-                            break;
+                this.updateCount();
 
-                        case 'checkbox':
-                            field.checked = json[name];
-                            break;
 
-                        default:
-                            field.value = json[name];
+
+            }
+
+        });
+
+
+
+            tr.querySelector(".btn-edit").addEventListener("click", e => {
+
+                let json = JSON.parse(tr.dataset.user);
+
+                this.formUpdateEl.dataset.trIndex = tr.sectionRowIndex;
+
+
+                for (let name in json) { /** Para cada name dentro do jason */
+
+                    let field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "]");
+
+                    if (field) {
+
+                        switch (field.type) {
+                            case 'file':
+                                continue;
+                                break;
+
+                            case 'radio':
+                                field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "][value=" + json[name] + "]");
+                                field.checked = true;
+                                break;
+
+                            case 'checkbox':
+                                field.checked = json[name];
+                                break;
+
+                            default:
+                                field.value = json[name];
+
+                        }
 
                     }
 
                 }
+                this.formUpdateEl.querySelector(".photo").src = json._photo;
 
-            }
+                this.showPanelUpdate();
+            });
 
-            this.showPanelUpdate();
-        });
+        }
+
+        showPanelCreate() {
+
+            document.querySelector("#box-user-create").style.display = "block";
+            document.querySelector("#box-user-update").style.display = "none";
+
+        }
+
+        showPanelUpdate() {
+
+            document.querySelector("#box-user-create").style.display = "none";
+            document.querySelector("#box-user-update").style.display = "block";
+
+        }
+
+        updateCount() {
+
+            let numberUsers = 0;
+            let numberAdmin = 0;
+
+            [...this.tableEl.children].forEach(tr => {
+
+                numberUsers++;
+
+                let user = JSON.parse(tr.dataset.user); /** Tranfrma os valores que foi tranformado em JSON novamente em um objeto. */
+
+
+                if (user._admin) numberAdmin++;
+
+
+            });
+
+            document.querySelector("#number-users").innerHTML = numberUsers;
+            document.querySelector("#number-users-admin").innerHTML = numberAdmin;
+
+
+
+
+
+
+        }
 
     }
-
-    showPanelCreate() {
-
-        document.querySelector("#box-user-create").style.display = "block";
-        document.querySelector("#box-user-update").style.display = "none";
-
-    }
-
-    showPanelUpdate() {
-
-        document.querySelector("#box-user-create").style.display = "none";
-        document.querySelector("#box-user-update").style.display = "block";
-
-    }
-
-    updateCount() {
-
-        let numberUsers = 0;
-        let numberAdmin = 0;
-
-        [...this.tableEl.children].forEach(tr => {
-
-            numberUsers++;
-
-            let user = JSON.parse(tr.dataset.user); /** Tranfrma os valores que foi tranformado em JSON novamente em um objeto. */
-
-
-            if (user._admin) numberAdmin++;
-
-
-        });
-
-        document.querySelector("#number-users").innerHTML = numberUsers;
-        document.querySelector("#number-users-admin").innerHTML = numberAdmin;
-
-
-
-
-
-
-    }
-
-}
