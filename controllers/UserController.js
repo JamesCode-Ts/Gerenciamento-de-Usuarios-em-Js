@@ -1,7 +1,7 @@
 class UserController {
 
 
-    constructor(formIdCreate, tableId) { /**O construtor é iniciado assim que a classe é instanciadas, ou seja, logo no inicio. */
+    constructor(formIdCreate,formIdUpdate, tableId) { /**O construtor é iniciado assim que a classe é instanciadas, ou seja, logo no inicio. */
 
         this.formEl = document.getElementById(formIdCreate);
         this.formUpdateEl = document.getElementById(formIdUpdate);
@@ -61,11 +61,12 @@ class UserController {
 
             event.preventDefault(); /**Cancela o carregamento padrão da atualização após apertar o submit. */
 
-            let values = this.getValues();
-
             let btn = this.formEl.querySelector("[type=submit]");
 
             btn.disable = true;
+
+            let values = this.getValues(this.formEl);
+
 
             if (!values) return false;
 
@@ -134,13 +135,13 @@ class UserController {
         });
 
     }
-    getValues() {
+    getValues(formEl) {
 
         let user = {};
         let isValid = true;
 
         /** Dessa forma é possivel transformar uma colecão em um array com [], e ... para que os elementos sejam indeterminados, ou seja , não se sabe quantos elementos tem. */
-        [...this.formEl.elements].forEach(function (field, index) { /** O forEach serve para percorrer todos os campos de name. 
+        [...formEl.elements].forEach(function (field, index) { /** O forEach serve para percorrer todos os campos de name. 
                                           E oferece uma função como tratamento para cada campo name.*/
 
             if (['name', 'email', 'password'].indexOf(field.name) > -1 && !field.value) {
@@ -148,8 +149,6 @@ class UserController {
                 isValid = false;
 
             }
-
-
 
             if (field.name == "gender") {
 
@@ -228,12 +227,14 @@ class UserController {
         tr.querySelector(".btn-edit").addEventListener("click", e => {
 
             let json = JSON.parse(tr.dataset.user);
-            let form = document.querySelector("#form-user-update");
+
+            this.formUpdateEl.dataset.trIndex = tr.sectionRowIndex;
 
 
             for (let name in json) {
 
-                let field = form.querySelector("[name=" + name.replace("_", "") + "]");
+                let field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "]");
+
                 if (field) {
 
                     switch (field.type) {
