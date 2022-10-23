@@ -63,7 +63,19 @@ class User {
     }
 
 
+    static getUsersStorage() {
 
+        let users = [];
+
+        if (localStorage.getItem("users")) {
+
+            users = JSON.parse(localStorage.getItem("users"));
+
+        }
+
+        return users;
+
+    }
 
 
 
@@ -87,5 +99,64 @@ class User {
     }
 
 
+    getNewID(){
 
+        let usersID = parseInt(localStorage.getItem("usersID"));
+
+        if (!usersID > 0) usersID = 0;
+
+        usersID++;
+
+        localStorage.setItem("usersID", usersID);
+
+        return usersID;
+
+    }
+
+    save(){
+
+        let users = User.getUsersStorage();
+
+        if (this.id > 0) {
+            
+            users.map(u=>{ /** Faz um mapeamento no array e se tiver um this.id compara se tem um u._id,
+                             no qual é o id retornado do map. */
+          
+                if (u._id == this.id) { /** Editar, se o id já existir.  */
+
+                    Object.assign(u, this); // Mescla, coloca o objeto this em u.
+
+                }
+
+                return u;
+
+            });
+
+        } else {
+
+            this._id = this.getNewID(); // Criar um novo id
+
+            users.push(this); // Adiciona o id no array users
+
+        }
+
+        localStorage.setItem("users", JSON.stringify(users));
+
+    }
+
+    remove(){
+
+        let users = User.getUsersStorage();
+
+        users.forEach((userData, index)=>{
+
+            if (this._id == userData._id) {
+
+                users.splice(index, 1);
+
+            }
+
+        });
+        localStorage.setItem("users", JSON.stringify(users));
+    }
 }
